@@ -126,3 +126,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuffIman
   duration: 2
+  pickupSFX: {fileID: 8300000, guid: e174613259b7bc247a0b2a53966e8779, type: 3}
+  pickupVFXPrefab: {fileID: 1827421365665687760, guid: ee12956b6d7342b4f87656cd56338fda, type: 3}
+  poolManager: {fileID: 0}
+  currentSpawn: {fileID: 0}

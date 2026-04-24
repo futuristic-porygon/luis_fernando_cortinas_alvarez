@@ -156,3 +156,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Collectible
   poolManager: {fileID: 0}
   currentSpawn: {fileID: 0}
+  collectVFX: {fileID: 1827421365665687760, guid: 3561928d1d15eba4abdf6aa70186729b, type: 3}
+  collectSFX: {fileID: 8300000, guid: 089cdbda431f7ca41bb3ddd4dc8fffc6, type: 3}

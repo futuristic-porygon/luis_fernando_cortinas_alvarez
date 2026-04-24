@@ -22,7 +22,15 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("References")]
     public Transform orientation;       
-    public Joystick mobileJoystick;    
+    public Joystick mobileJoystick;
+
+    [Header("Audio & VFX")]
+    public AudioSource footstepSource;
+    public AudioClip footstepClip;
+    public AudioClip jumpSFX;
+    public float footstepInterval = 0.5f;
+    private float footstepTimer;
+    public AudioClip buffEndSFX;
 
     private PlayerControls controls;   
     private Vector2 moveInput;          
@@ -61,6 +69,8 @@ public class PlayerMovement : MonoBehaviour
         
         if (grounded) rb.linearDamping = groundDrag;
         else rb.linearDamping = 0;
+
+        HandleFootsteps();
     }
 
     void FixedUpdate()
@@ -128,8 +138,13 @@ public class PlayerMovement : MonoBehaviour
     private void Jump()
     {
         rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-       
+
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+
+        if (jumpSFX != null)
+        {
+            footstepSource.PlayOneShot(jumpSFX);
+        }
     }
 
     private void ResetJump() => readyToJump = true;
@@ -145,5 +160,19 @@ public class PlayerMovement : MonoBehaviour
         jumpForce *= multiplier;
         yield return new WaitForSeconds(duration);
         jumpForce /= multiplier;
+        if (buffEndSFX) footstepSource.PlayOneShot(buffEndSFX); 
+    }
+    private void HandleFootsteps()
+    {
+        
+        if (grounded && moveInput.magnitude > 0.1f)
+        {
+            footstepTimer -= Time.deltaTime;
+            if (footstepTimer <= 0)
+            {
+                footstepSource.PlayOneShot(footstepClip);
+                footstepTimer = footstepInterval; 
+            }
+        }
     }
 }
