@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 
-public class LeaderboardRow : MonoBehaviour
+public class LeaderboardRow : MonoBehaviour //para el prefab del leaderboard
 {
     public TextMeshProUGUI rankingNumero;
     public TextMeshProUGUI nombreJugador;

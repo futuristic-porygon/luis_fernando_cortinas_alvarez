@@ -35,17 +35,14 @@ public class JoystickCamara : MonoBehaviour, IPointerDownHandler, IDragHandler, 
         onUse = true;
     }
 
-    public void OnDrag(PointerEventData eventData)
+    public void OnDrag(PointerEventData eventData)//para cuando se interactua con el joystick
     {
-        // Usamos ScreenPointToLocalPointInRectangle para que las coordenadas sean relativas al joystick, 
-        // sin importar el tamaño de la pantalla o la resolución.
         Vector2 localPoint;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(centerPoint, eventData.position, eventData.pressEventCamera, out localPoint);
 
-        // Limitamos el movimiento del stick
+
         joystickStick.localPosition = Vector2.ClampMagnitude(localPoint, radialLimit);
 
-        // Calculamos el eje entre -1 y 1
         axis = joystickStick.localPosition / radialLimit;
     }
 
@@ -64,7 +61,7 @@ public class JoystickCamara : MonoBehaviour, IPointerDownHandler, IDragHandler, 
         onUse = false;
         axis = Vector2.zero;
 
-        // Le decimos a la cámara que ya no hay movimiento
+        // para que la camara sepa que ya no hay movimiento
         if (camScript != null)
         {
             camScript.ReceiveTouchInput(0, 0);

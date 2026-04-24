@@ -33,7 +33,7 @@ public class PlayerMagnet : MonoBehaviour
             if (dist < 1f)
             {
                 Collectible c = hit.GetComponent<Collectible>();
-                if (c != null) c.Collect(); // Forzamos la colecta si el imán ya la trajo hasta aquí
+                if (c != null) c.Collect();
             }
         }
     }

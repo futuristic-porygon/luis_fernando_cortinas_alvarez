@@ -34,8 +34,7 @@ public class PlayerMovement : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         controls = new PlayerControls();
-
-        // Suscribirse al evento de salto: Cuando se presiona el botón, intenta saltar
+       
         controls.Player.Jump.performed += ctx => AttemptJump();
     }
 

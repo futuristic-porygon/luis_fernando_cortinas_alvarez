@@ -15,13 +15,8 @@ public class Collectible : MonoBehaviour
 
     public void Collect()
     {
-        if (currentSpawn == null)
-        {
-            Debug.LogError("¡ERROR! La Kaoruko " + gameObject.name + " no tiene asignado un spawn.");
-            return;
-        }
+        if (currentSpawn == null) return;
 
-        Debug.Log("Recolectada. Devolviendo spawn: " + currentSpawn.name);
 
         if (GameManager.instance != null)
             GameManager.instance.AddKaoruko();

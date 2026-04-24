@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
 public class PlayManager : MonoBehaviour
 {
     public static PlayManager Instance;
 
     [SerializeField] private TextMeshProUGUI errorDisplay;
+    [SerializeField] private int passwordMin = 6;
 
     [Header("Register")]
     [SerializeField] private TMP_InputField CAEmailInput;
@@ -18,93 +20,60 @@ public class PlayManager : MonoBehaviour
     [Header("Login")]
     [SerializeField] private TMP_InputField LogUsernameInput;
     [SerializeField] private TMP_InputField LogPasswordInput;
-    private string loggedInPlayerId;
-
-    [Header("UI Feedback")]// Arrastra el texto aquí
-
-    [SerializeField] private int passwordMin;
-
-    private string username;
 
     [Header("Leaderboards")]
     [SerializeField] private int score;
-    [SerializeField] private GameObject leaderboardPanel;
     [SerializeField] private Transform rowsParent;
     [SerializeField] private GameObject rowPrefab;
 
-
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    private string loggedInPlayerId;
 
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-            // Importante: Esto le dice a Unity que no lo borre al cambiar de escena
             DontDestroyOnLoad(gameObject);
         }
         else
         {
-            // Si ya existe uno (el que viene de la escena anterior), borramos el nuevo
             Destroy(gameObject);
         }
     }
 
     void Start()
     {
-        if (string.IsNullOrEmpty(PlayFabSettings.DeveloperSecretKey))
-            PlayFabSettings.DeveloperSecretKey = "438EGT8XTBT1DYYEM7FPPU14A4WY7MI4EZI6C7ZEGG51IJDOQ4";
-
         if (string.IsNullOrEmpty(PlayFabSettings.TitleId))
-            PlayFabSettings.TitleId = "B3871";
+            PlayFabSettings.TitleId = "B3871";//el ID de mi playfab
 
-        // Si iniciamos directamente en Leaderboards (por pruebas en el editor)
-        if (SceneManager.GetActiveScene().name == "Leaderboards")
-            GetLeaderboard();
-
-        // Si iniciamos en Login, forzamos la primera conexión manualmente
-        if (SceneManager.GetActiveScene().name == "Login y Signin")
-            AlCargarEscena(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+        CheckSceneInitialization(SceneManager.GetActiveScene());
     }
 
-    // RegisterPlayer se va a encargar de registrar al usuario en playfab
-    //Es publico porque se tiene que mandar a llamar desde un boton
-    public void RegisterPlayer()
+    private void CheckSceneInitialization(Scene scene)
+    //dependiendo de la escena es para que sepa que va a hacer. Si es Log in,busca los inputfields, y si es leaderboard, pues busca el scrollview
     {
-        if (CAPasswordInput.text.Length < passwordMin)
-        {
+        if (scene.name == "Leaderboards") GetLeaderboard();
+        if (scene.name == "Login y Signin") AlCargarEscena(scene, LoadSceneMode.Single);
+    }
 
-            Debug.Log($"Tu contrasena debe tener al menos {passwordMin} caracteres");
-        }
-        // Crea una peticion nueva para registrar a un usuario nuevo
+    public void RegisterPlayer()//para sign in
+    {
+        if (CAPasswordInput.text.Length < passwordMin) return;
+
         var request = new RegisterPlayFabUserRequest()
         {
             Username = CAUsernameInput.text,
             Email = CAEmailInput.text,
             Password = CAPasswordInput.text,
-
-        };
-
-        PlayFabClientAPI.RegisterPlayFabUser(request, RegisterUserSucces, OnError);
-    }
-
-    public void RegisterUserSucces(RegisterPlayFabUserResult result)
-    {
-
-        var request = new UpdateUserTitleDisplayNameRequest
-        {
             DisplayName = CAUsernameInput.text
         };
 
-        PlayFabClientAPI.UpdateUserTitleDisplayName(request,
-            onSuccess => Debug.Log("¡Nombre de pantalla actualizado!"),
-            OnError);
-
-        Debug.Log("Usuario Registrado");
+        PlayFabClientAPI.RegisterPlayFabUser(request, result => {
+            UpdateDisplayName(CAUsernameInput.text);
+        }, OnError);
     }
 
-    public void LoginWithPlayFab()
+    public void LoginWithPlayFab()//para el boton de login en la pantalla de log in
     {
         var request = new LoginWithPlayFabRequest()
         {
@@ -112,81 +81,56 @@ public class PlayManager : MonoBehaviour
             Password = LogPasswordInput.text,
         };
 
-        PlayFabClientAPI.LoginWithPlayFab(request, OnLoginSuccess, OnError);
+        PlayFabClientAPI.LoginWithPlayFab(request, result => {
+            loggedInPlayerId = result.PlayFabId;
+            UpdateDisplayName(LogUsernameInput.text);
+            SceneManager.LoadScene("Juego");
+        }, OnError);
     }
 
-    private void OnLoginSuccess(LoginResult result)
+    private void UpdateDisplayName(string newName)//para que se muestre el nombre y asi
     {
-        loggedInPlayerId = result.PlayFabId;
-
-        var nameRequest = new UpdateUserTitleDisplayNameRequest
-        {
-            DisplayName = LogUsernameInput.text
-        };
-        PlayFabClientAPI.UpdateUserTitleDisplayName(nameRequest, null, null);
-
-        SceneManager.LoadScene("Juego");
+        var request = new UpdateUserTitleDisplayNameRequest { DisplayName = newName };
+        PlayFabClientAPI.UpdateUserTitleDisplayName(request, null, null);
     }
 
-    [ContextMenu("Update Score")]
     public void UpdateScoreFromGame(int incomingScore)
     {
-        this.score = incomingScore; // Asigna el puntaje calculado en el juego
-        UpdateScore(); // Llama a la función que ya tenías para subirlo a la nube
-    }
-    public void UpdateScore()
-    {
+        this.score = incomingScore;
         var request = new UpdatePlayerStatisticsRequest()
         {
-            Statistics = new List<PlayFab.ClientModels.StatisticUpdate>()
-        {
-            new PlayFab.ClientModels.StatisticUpdate
-            {
-                StatisticName = "Score",
-                Value = score
+            Statistics = new List<StatisticUpdate> {
+                new StatisticUpdate { StatisticName = "Score", Value = score }
             }
-        }
         };
-
-        PlayFabClientAPI.UpdatePlayerStatistics(request, OnUpdateStatisticsSuccess, OnError);
+        PlayFabClientAPI.UpdatePlayerStatistics(request, null, OnError);
     }
 
-
     public void GetLeaderboard()
+    //para que el playmanager busque el leaderboard porque como es persistente entre escenas,
+    //pues tiene que bscar las cosas automatico
     {
-        // Si la referencia es nula, intentamos buscarla una última vez por ruta completa
         if (rowsParent == null)
         {
-            GameObject found = GameObject.Find("Scroll View/Viewport/Content");
+            GameObject found = GameObject.Find("Scroll View/Viewport/Content") ?? GameObject.Find("Content");
             if (found != null) rowsParent = found.transform;
         }
 
-        if (rowsParent == null)
-        {
-            Debug.LogWarning("Esperando a que la escena cargue el Content...");
-            return;
-        }
+        if (rowsParent == null) return;
 
         var request = new GetLeaderboardRequest
         {
             StatisticName = "Score",
             StartPosition = 0,
             MaxResultsCount = 10,
-            ProfileConstraints = new PlayerProfileViewConstraints
-            {
-                ShowDisplayName = true,
-                ShowAvatarUrl = true
-            }
+            ProfileConstraints = new PlayerProfileViewConstraints { ShowDisplayName = true }
         };
 
         PlayFabClientAPI.GetLeaderboard(request, OnGetLeaderboardSuccess, OnError);
     }
+
     private void OnGetLeaderboardSuccess(GetLeaderboardResult result)
     {
-        Debug.Log("¡Datos recibidos! Cantidad de filas: " + result.Leaderboard.Count); // <--- LOG 2
-
-        if (rowsParent == null) return;
-
         foreach (Transform item in rowsParent) Destroy(item.gameObject);
 
         foreach (var item in result.Leaderboard)
@@ -196,113 +140,61 @@ public class PlayManager : MonoBehaviour
 
             if (rowScript != null)
             {
-                bool JugadorLoggeado = (item.PlayFabId == loggedInPlayerId);
-
-                // Obtenemos la URL de la imagen del perfil
-                string urlImagen = item.Profile?.AvatarUrl;
-
                 rowScript.Setup(
-    item.Position + 1,
-    // Accedemos a Profile para sacar el DisplayName
-    (item.Profile != null && !string.IsNullOrEmpty(item.Profile.DisplayName))
-        ? item.Profile.DisplayName
-        : "Jugador Anónimo",
-    item.StatValue,
-    JugadorLoggeado
-);
+                    item.Position + 1,
+                    item.Profile?.DisplayName ?? "Jugador Anónimo",//en caso de que no se registraran
+                    item.StatValue,
+                    item.PlayFabId == loggedInPlayerId
+                );
             }
         }
     }
-    public void OnUpdateStatisticsSuccess(UpdatePlayerStatisticsResult result)
-    {
-        Debug.Log("Scoreboard subido a la nube con éxito");
-        //GetLeaderboard();
-    }
+
     public void OnError(PlayFabError error)
     {
-        // Seguimos imprimiendo en consola para ti como desarrollador
-        Debug.LogError(error.GenerateErrorReport());
-
-        // Si tenemos la referencia del texto, mostramos el error al jugador
         if (errorDisplay != null)
         {
-            // error.ErrorMessage es una descripción corta y legible del problema
+            //este lo hice para qe se vieran los errores del playfab en la pantalla de inicio porque luego me confundia xd
             errorDisplay.text = "Error: " + error.ErrorMessage;
-
-            // Opcional: Si quieres que el mensaje desaparezca después de unos segundos
-            CancelInvoke("ClearError");
-            Invoke("ClearError", 5f);
+            CancelInvoke(nameof(ClearError));
+            Invoke(nameof(ClearError), 5f);
         }
     }
+    
+    
+    private void ClearError() => errorDisplay.text = "";
 
-    // Función auxiliar para limpiar el mensaje
-    private void ClearError()
-    {
-        if (errorDisplay != null) errorDisplay.text = "";
-    }
-    private void OnEnable()
-    {
-        SceneManager.sceneLoaded += AlCargarEscena;
-    }
-
-    private void OnDisable()
-    {
-        SceneManager.sceneLoaded -= AlCargarEscena;
-    }
+    private void OnEnable() => SceneManager.sceneLoaded += AlCargarEscena;
+    private void OnDisable() => SceneManager.sceneLoaded -= AlCargarEscena;
 
     private void AlCargarEscena(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == "Leaderboards")
-        {
-            GameObject foundContent = GameObject.Find("Content");
-            if (foundContent != null) rowsParent = foundContent.transform;
-            leaderboardPanel = GameObject.Find("Leaderboard");
-            GetLeaderboard();
-        }
+        //para cuando se pasa a la escena de leaderboards, que playermanager muestre la info en el scrollview
+        if (scene.name == "Leaderboards") GetLeaderboard();
         else if (scene.name == "Login y Signin")
         {
-            // 1. Buscamos el Canvas
             GameObject canvas = GameObject.Find("Canvas");
             if (canvas == null) return;
 
-            // 2. Función mágica: GetComponentInChildren con el parámetro 'true' 
-            // busca incluso en objetos DESACTIVADOS.
-            TMP_InputField[] todosLosInputs = canvas.GetComponentsInChildren<TMP_InputField>(true);
-
-            TMP_InputField lUser = null, lPass = null, rEmail = null, rUser = null, rPass = null;
-
-            foreach (var input in todosLosInputs)
+            var inputs = canvas.GetComponentsInChildren<TMP_InputField>(true);
+            foreach (var input in inputs)
             {
-                // Comparamos por el nombre exacto que tienen en tu jerarquía (según tus capturas)
-                if (input.name == "LogUsernameInput") lUser = input;
-                if (input.name == "LogPasswordInput") lPass = input;
-                if (input.name == "CAEmailInput") rEmail = input;
-                if (input.name == "CAUsernameInput") rUser = input;
-                if (input.name == "CAPasswordInput") rPass = input;
+                switch (input.name)
+                {
+                    case "LogUsernameInput": LogUsernameInput = input; break;
+                    case "LogPasswordInput": LogPasswordInput = input; break;
+                    case "CAEmailInput": CAEmailInput = input; break;
+                    case "CAUsernameInput": CAUsernameInput = input; break;
+                    case "CAPasswordInput": CAPasswordInput = input; break;
+                }
             }
-
-            // 3. Mandamos a reconectar
-            ReconectarTodo(lUser, lPass, rEmail, rUser, rPass);
-
-            Debug.Log("Reconexión exhaustiva completada (incluyendo objetos ocultos)");
         }
     }
+
     public void RestartGame()
     {
-       
-        this.score = 0;
+        //es para el boton del final del jego
+        score = 0;
         SceneManager.LoadScene("Juego");
-    }
-
-    public void ReconectarTodo(TMP_InputField logUser, TMP_InputField logPass, TMP_InputField regEmail, TMP_InputField regUser, TMP_InputField regPass)
-    {
-        LogUsernameInput = logUser;
-        LogPasswordInput = logPass;
-
-        CAEmailInput = regEmail;
-        CAUsernameInput = regUser;
-        CAPasswordInput = regPass;
-
-        Debug.Log("¡Toda la UI de Login y Registro reconectada!");
     }
 }

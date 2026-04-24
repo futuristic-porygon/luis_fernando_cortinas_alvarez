@@ -9,7 +9,7 @@ public class UIManager : MonoBehaviour
 
     void Start()
     {
-        // Al empezar, siempre mostramos el Login por defecto
+        //muestra la pantalla de UI por defalt
         ShowLogin();
     }
 
@@ -26,9 +26,4 @@ public class UIManager : MonoBehaviour
         registerPanel.SetActive(true);
     }
 
-    /*public void QuitGame()
-    {
-        Application.Quit();
-
-    }*/
 }
