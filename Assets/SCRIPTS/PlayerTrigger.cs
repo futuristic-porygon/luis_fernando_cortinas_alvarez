@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,7 +8,7 @@ public class PlayerTrigger : MonoBehaviour
     ObjectPooling2 objectPooling;
     private void Awake()
     {
-        objectPooling = FindObjectOfType<ObjectPooling2>();
+        objectPooling = FindAnyObjectByType<ObjectPooling2>();
 
     }
 
